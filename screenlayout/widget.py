@@ -20,7 +20,7 @@ import stat
 import pango
 import pangocairo
 import gobject, gtk
-from .auxiliary import Position, Size, NORMAL, ROTATIONS, InadequateConfiguration
+from .auxiliary import Position, Size, Scale, NORMAL, ROTATIONS, SCALES, InadequateConfiguration
 from .xrandr import XRandR, Feature
 from .snap import Snap
 
@@ -133,6 +133,8 @@ class ARandRWidget(gtk.DrawingArea):
         self._set_something('rotation', on, rot)
     def set_resolution(self, on, res):
         self._set_something('mode', on, res)
+    def set_scale(self, on, scl):
+        self._set_something('scale', on, scl)
 
     def set_primary(self, on, primary):
         o = self._xrandr.configuration.outputs[on]
@@ -365,13 +367,29 @@ class ARandRWidget(gtk.DrawingArea):
                     i.props.sensitive = False
                 or_m.add(i)
 
+            scl_m = gtk.Menu()
+            for s in SCALES:
+                i = gtk.CheckMenuItem(str(s))
+                i.props.draw_as_radio = True
+                i.props.active = (oc.scale == s)
+                def _scl_set(menuitem, on, s):
+                    try:
+                        self.set_scale(on, s)
+                    except InadequateConfiguration, e:
+                        self.error_message(_("This scale is not possible here: %s")%e.message)
+                i.connect('activate', _scl_set, on, s)
+                scl_m.add(i)
+
             res_i = gtk.MenuItem(_("Resolution"))
             res_i.props.submenu = res_m
             or_i = gtk.MenuItem(_("Orientation"))
             or_i.props.submenu = or_m
+            scl_i = gtk.MenuItem(_("Scales"))
+            scl_i.props.submenu = scl_m
 
             m.add(res_i)
             m.add(or_i)
+            m.add(scl_i)
 
         m.show_all()
         return m

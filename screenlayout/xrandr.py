@@ -20,7 +20,7 @@ import os
 import subprocess
 import warnings
 
-from .auxiliary import BetterList, Size, Position, Geometry, FileLoadError, FileSyntaxError, InadequateConfiguration, Rotation, ROTATIONS, NORMAL, NamedSize
+from .auxiliary import BetterList, Size, Scale, Position, Geometry, FileLoadError, FileSyntaxError, InadequateConfiguration, Rotation, ROTATIONS, NORMAL, NamedSize
 
 import gettext
 gettext.install('arandr')
@@ -137,7 +137,7 @@ class XRandR(object):
 
         self._load_parse_screenline(screenline)
 
-        for headline,details in items:
+        for headline,details,transform in items:
             if headline.startswith("  "): continue # a currently disconnected part of the screen i can't currently get any info out of
             if headline == "": continue # noise
 
@@ -196,8 +196,17 @@ class XRandR(object):
                     # the mode is really new
                     o.modes.append(NamedSize(r, name=n))
 
+            currentScale = Scale([float(1.0),float(1.0)])
+            if len(transform) > 0:
+                xsplits = filter(None, transform[0].split(" "))
+                ysplits = filter(None, transform[1].split(" "))
+                currentScale = Scale([float(xsplits[1]),float(ysplits[2])])
+
+
             self.state.outputs[o.name] = o
-            self.configuration.outputs[o.name] = self.configuration.OutputConfiguration(active, primary, geometry, rotation, currentname)
+            self.configuration.outputs[o.name] = self.configuration.OutputConfiguration(active, primary, geometry,
+                                                                                        rotation, currentname, currentScale)
+
 
     def _load_raw_lines(self):
         output = self._output("--verbose")
@@ -207,6 +216,10 @@ class XRandR(object):
             if l.startswith("Screen "):
                 assert screenline is None
                 screenline = l
+            elif l.startswith('\tTransform:'):
+                items[-1][2].append(l)
+            elif len(items)> 0 and len(items[-1][2])> 0 and len(items[-1][2]) != 3:
+                items[-1][2].append(l)
             elif l.startswith('\t'):
                 continue
             elif l.startswith(2*' '): # [mode, width, height]
@@ -217,7 +230,7 @@ class XRandR(object):
                 else: # mode
                     items[-1][1].append([l.split()])
             else:
-                items.append([l, []])
+                items.append([l, [], []],)
         return screenline, items
 
     def _load_parse_screenline(self, screenline):
@@ -327,10 +340,12 @@ class XRandR(object):
                     args.append(str(o.position))
                     args.append("--rotate")
                     args.append(o.rotation)
+                    args.append("--scale")
+                    args.append(str(o.scale))
             return args
 
         class OutputConfiguration(object):
-            def __init__(self, active, primary, geometry, rotation, modename):
+            def __init__(self, active, primary, geometry, rotation, modename, scale):
                 self.active = active
                 self.primary = primary
                 if active:
@@ -340,4 +355,6 @@ class XRandR(object):
                         self.mode = NamedSize(Size(reversed(geometry.size)), name=modename)
                     else:
                         self.mode = NamedSize(geometry.size, name=modename)
+                    self.scale = scale
+
             size = property(lambda self: NamedSize(Size(reversed(self.mode)), name=self.mode.name) if self.rotation.is_odd else self.mode)

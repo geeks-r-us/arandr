@@ -59,6 +59,31 @@ class Size(tuple):
     def __str__(self):
         return "%dx%d"%self
 
+class Scale(tuple):
+    """2-tuple of scale x and scale y that can be created from a '<scalex>x<scaley>' string"""
+    def __new__(cls, arg):
+        if isinstance(arg, basestring):
+            arg = [float(x) for x in arg.split("x")]
+        arg = tuple(arg)
+        assert len(arg)==2
+        return super(Scale, cls).__new__(cls, arg)
+
+    scaleX = property(lambda self:self[0])
+    scaleY = property(lambda self:self[1])
+    def __str__(self):
+        return "%.2fx%.2f"%self
+
+    def __eq__(self, other):
+        return (isinstance(other, self.__class__) and str(self) == str(other))
+
+SCALE05 = Scale([0.5, 0.5])
+SCALE075 = Scale([0.75, 0.75])
+SCALE085 = Scale([0.85, 0.85])
+SCALE1 = Scale([1.0, 1.0])
+SCALE115 = Scale([1.15, 1.15])
+SCALE125 = Scale([1.25, 1.25])
+SCALES = (SCALE05, SCALE075, SCALE085, SCALE1, SCALE115, SCALE125)
+
 class NamedSize(object):
     """Object that behaves like a size, but has an additional name attribute"""
     def __init__(self, size, name):
@@ -133,3 +158,4 @@ RIGHT = Rotation('right')
 INVERTED = Rotation('inverted')
 NORMAL = Rotation('normal')
 ROTATIONS = (NORMAL, RIGHT, INVERTED, LEFT)
+
